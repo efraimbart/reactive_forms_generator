@@ -12,6 +12,8 @@ class Login {
 
   final String password;
 
+  final String nonNullable;
+
   Login({
     @FormControlAnnotation(
       validators: [requiredValidator],
@@ -21,5 +23,6 @@ class Login {
       validators: [requiredValidator],
     )
         this.password = '',
+        required this.nonNullable = '',
   });
 }

@@ -318,7 +318,10 @@ class LoginForm implements FormModel<Login> {
         'Prefer not to call `model` on non-valid form it could cause unexpected exceptions in case you created a non-nullable field in model and expect it to be guarded by some kind of `required` validator.',
       );
     }
-    return Login(email: _emailValue, password: _passwordValue);
+    return Login(
+        email: _emailValue,
+        password: _passwordValue,
+        nonNullable: login?.nonNullable);
   }
 
   LoginForm copyWithPath(String? path) {
