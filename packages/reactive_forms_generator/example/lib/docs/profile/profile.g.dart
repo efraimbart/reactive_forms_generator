@@ -7,7 +7,7 @@ part of 'profile.dart';
 // **************************************************************************
 
 _$_Profile _$$_ProfileFromJson(Map<String, dynamic> json) => _$_Profile(
-      id: json['id'] as String,
+      json['id'] as String,
       name: json['name'] as String,
       chartingOrder: ChartingOrderValue.fromJson(
           json['chartingOrder'] as Map<String, dynamic>),

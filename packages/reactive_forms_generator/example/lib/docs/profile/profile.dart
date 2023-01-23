@@ -49,8 +49,8 @@ extension NumberingStandardExt on NumberingStandard {
 class Profile with _$Profile {
   const Profile._();
 
-  factory Profile({
-    required String id,
+  factory Profile(    
+    String id, {
     @FormControlAnnotation<String>() required String name,
     @FormControlAnnotation<ChartingOrderValue>()
         required ChartingOrderValue chartingOrder,
