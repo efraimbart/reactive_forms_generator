@@ -117,24 +117,16 @@ class ProfileFormBuilder extends StatefulWidget {
 }
 
 class _ProfileFormBuilderState extends State<ProfileFormBuilder> {
-  late FormGroup _form;
-
   late ProfileForm _formModel;
 
   @override
   void initState() {
-    _form = FormGroup({});
-    _formModel = ProfileForm(widget.model, _form, null);
+    _formModel =
+        ProfileForm(widget.model, ProfileForm.formElements(widget.model), null);
 
-    final elements = _formModel.formElements();
-    _form.setValidators(elements.validators);
-    _form.setAsyncValidators(elements.asyncValidators);
-
-    if (elements.disabled) {
-      _form.markAsDisabled();
+    if (_formModel.form.disabled) {
+      _formModel.form.markAsDisabled();
     }
-
-    _form.addAll(elements.controls);
 
     widget.initState?.call(context, _formModel);
 
@@ -143,31 +135,34 @@ class _ProfileFormBuilderState extends State<ProfileFormBuilder> {
 
   @override
   void didUpdateWidget(covariant ProfileFormBuilder oldWidget) {
-    _formModel = ProfileForm(widget.model, _form, null);
-    final elements = _formModel.formElements();
+    if (widget.model != oldWidget.model) {
+      _formModel = ProfileForm(
+          widget.model, ProfileForm.formElements(widget.model), null);
 
-    _form.updateValue(elements.rawValue);
-    _form.setValidators(elements.validators);
-    _form.setAsyncValidators(elements.asyncValidators);
+      if (_formModel.form.disabled) {
+        _formModel.form.markAsDisabled();
+      }
+    }
 
     super.didUpdateWidget(oldWidget);
   }
 
   @override
   void dispose() {
-    _form.dispose();
+    _formModel.form.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return ReactiveProfileForm(
+      key: ObjectKey(_formModel),
       form: _formModel,
       onWillPop: widget.onWillPop,
       child: ReactiveFormBuilder(
-        form: () => _form,
+        form: () => _formModel.form,
         onWillPop: widget.onWillPop,
-        builder: (BuildContext context, FormGroup formGroup, Widget? child) =>
+        builder: (context, formGroup, child) =>
             widget.builder(context, _formModel, widget.child),
         child: widget.child,
       ),
@@ -377,7 +372,7 @@ class ProfileForm implements FormModel<Profile> {
     bool emitEvent = true,
   }) {
     incidenceFilterControl.updateValue(
-        IncidenceFilterForm(value, FormGroup({}), null).formElements().rawValue,
+        IncidenceFilterForm.formElements(value).rawValue,
         updateParent: updateParent,
         emitEvent: emitEvent);
   }
@@ -388,9 +383,7 @@ class ProfileForm implements FormModel<Profile> {
     bool emitEvent = true,
   }) {
     thresholdControl.updateValue(
-        ThresholdSettingForm(value, FormGroup({}), null)
-            .formElements()
-            .rawValue,
+        ThresholdSettingForm.formElements(value).rawValue,
         updateParent: updateParent,
         emitEvent: emitEvent);
   }
@@ -400,10 +393,8 @@ class ProfileForm implements FormModel<Profile> {
     bool updateParent = true,
     bool emitEvent = true,
   }) {
-    timerControl.updateValue(
-        TimerSettingForm(value, FormGroup({}), null).formElements().rawValue,
-        updateParent: updateParent,
-        emitEvent: emitEvent);
+    timerControl.updateValue(TimerSettingForm.formElements(value).rawValue,
+        updateParent: updateParent, emitEvent: emitEvent);
   }
 
   void nameValuePatch(
@@ -457,7 +448,7 @@ class ProfileForm implements FormModel<Profile> {
     bool emitEvent = true,
   }) {
     incidenceFilterControl.updateValue(
-        IncidenceFilterForm(value, form, null).formElements().rawValue,
+        IncidenceFilterForm.formElements(value).rawValue,
         updateParent: updateParent,
         emitEvent: emitEvent);
   }
@@ -468,7 +459,7 @@ class ProfileForm implements FormModel<Profile> {
     bool emitEvent = true,
   }) {
     thresholdControl.updateValue(
-        ThresholdSettingForm(value, form, null).formElements().rawValue,
+        ThresholdSettingForm.formElements(value).rawValue,
         updateParent: updateParent,
         emitEvent: emitEvent);
   }
@@ -478,10 +469,8 @@ class ProfileForm implements FormModel<Profile> {
     bool updateParent = true,
     bool emitEvent = true,
   }) {
-    timerControl.updateValue(
-        TimerSettingForm(value, form, null).formElements().rawValue,
-        updateParent: updateParent,
-        emitEvent: emitEvent);
+    timerControl.updateValue(TimerSettingForm.formElements(value).rawValue,
+        updateParent: updateParent, emitEvent: emitEvent);
   }
 
   void nameValueReset(
@@ -537,9 +526,7 @@ class ProfileForm implements FormModel<Profile> {
     bool? disabled,
   }) =>
       incidenceFilterControl.reset(
-          value: IncidenceFilterForm(value, FormGroup({}), null)
-              .formElements()
-              .rawValue,
+          value: IncidenceFilterForm.formElements(value).rawValue,
           updateParent: updateParent,
           emitEvent: emitEvent);
   void thresholdValueReset(
@@ -550,9 +537,7 @@ class ProfileForm implements FormModel<Profile> {
     bool? disabled,
   }) =>
       thresholdControl.reset(
-          value: ThresholdSettingForm(value, FormGroup({}), null)
-              .formElements()
-              .rawValue,
+          value: ThresholdSettingForm.formElements(value).rawValue,
           updateParent: updateParent,
           emitEvent: emitEvent);
   void timerValueReset(
@@ -563,9 +548,7 @@ class ProfileForm implements FormModel<Profile> {
     bool? disabled,
   }) =>
       timerControl.reset(
-          value: TimerSettingForm(value, FormGroup({}), null)
-              .formElements()
-              .rawValue,
+          value: TimerSettingForm.formElements(value).rawValue,
           updateParent: updateParent,
           emitEvent: emitEvent);
   FormControl<String> get nameControl =>
@@ -730,14 +713,15 @@ class ProfileForm implements FormModel<Profile> {
     }
   }
 
+  @override
   Profile get model {
     if (!form.valid) {
       debugPrint(
         'Prefer not to call `model` on non-valid form it could cause unexpected exceptions in case you created a non-nullable field in model and expect it to be guarded by some kind of `required` validator.',
       );
     }
-    return Profile(
-        id: profile.id,
+    return Profile(profile.id,
+        anotherId: profile.anotherId,
         name: _nameValue,
         chartingOrder: _chartingOrderValue,
         numberingStandard: _numberingStandardValue,
@@ -752,36 +736,27 @@ class ProfileForm implements FormModel<Profile> {
     return ProfileForm(profile, form, path);
   }
 
+  @override
   void updateValue(
     Profile value, {
     bool updateParent = true,
     bool emitEvent = true,
   }) =>
-      form.updateValue(
-          ProfileForm(value, FormGroup({}), null).formElements().rawValue,
-          updateParent: updateParent,
-          emitEvent: emitEvent);
-  void resetValue(
-    Profile value, {
-    bool updateParent = true,
-    bool emitEvent = true,
-  }) =>
-      form.reset(
-          value:
-              ProfileForm(value, FormGroup({}), null).formElements().rawValue,
-          updateParent: updateParent,
-          emitEvent: emitEvent);
+      form.updateValue(ProfileForm.formElements(value).rawValue,
+          updateParent: updateParent, emitEvent: emitEvent);
+  @override
   void reset({
+    Profile? value,
     bool updateParent = true,
     bool emitEvent = true,
   }) =>
       form.reset(
-          value: formElements().rawValue,
+          value: value != null ? formElements(value).rawValue : null,
           updateParent: updateParent,
           emitEvent: emitEvent);
   String pathBuilder(String? pathItem) =>
       [path, pathItem].whereType<String>().join(".");
-  FormGroup formElements() => FormGroup({
+  static FormGroup formElements(Profile profile) => FormGroup({
         nameControlName: FormControl<String>(
             value: profile.name,
             validators: [],
@@ -817,9 +792,11 @@ class ProfileForm implements FormModel<Profile> {
             asyncValidatorsDebounceTime: 250,
             disabled: false,
             touched: false),
-        incidenceFilterControlName: incidenceFilterForm.formElements(),
-        thresholdControlName: thresholdForm.formElements(),
-        timerControlName: timerForm.formElements()
+        incidenceFilterControlName:
+            IncidenceFilterForm.formElements(profile.incidenceFilter),
+        thresholdControlName:
+            ThresholdSettingForm.formElements(profile.threshold),
+        timerControlName: TimerSettingForm.formElements(profile.timer)
       },
           validators: [],
           asyncValidators: [],
@@ -1221,6 +1198,7 @@ class IncidenceFilterForm implements FormModel<IncidenceFilter> {
     }
   }
 
+  @override
   IncidenceFilter get model {
     if (!form.valid) {
       debugPrint(
@@ -1240,39 +1218,27 @@ class IncidenceFilterForm implements FormModel<IncidenceFilter> {
     return IncidenceFilterForm(incidenceFilter, form, path);
   }
 
+  @override
   void updateValue(
     IncidenceFilter value, {
     bool updateParent = true,
     bool emitEvent = true,
   }) =>
-      form.updateValue(
-          IncidenceFilterForm(value, FormGroup({}), null)
-              .formElements()
-              .rawValue,
-          updateParent: updateParent,
-          emitEvent: emitEvent);
-  void resetValue(
-    IncidenceFilter value, {
-    bool updateParent = true,
-    bool emitEvent = true,
-  }) =>
-      form.reset(
-          value: IncidenceFilterForm(value, FormGroup({}), null)
-              .formElements()
-              .rawValue,
-          updateParent: updateParent,
-          emitEvent: emitEvent);
+      form.updateValue(IncidenceFilterForm.formElements(value).rawValue,
+          updateParent: updateParent, emitEvent: emitEvent);
+  @override
   void reset({
+    IncidenceFilter? value,
     bool updateParent = true,
     bool emitEvent = true,
   }) =>
       form.reset(
-          value: formElements().rawValue,
+          value: value != null ? formElements(value).rawValue : null,
           updateParent: updateParent,
           emitEvent: emitEvent);
   String pathBuilder(String? pathItem) =>
       [path, pathItem].whereType<String>().join(".");
-  FormGroup formElements() => FormGroup({
+  static FormGroup formElements(IncidenceFilter? incidenceFilter) => FormGroup({
         isMobilityEnabledControlName: FormControl<bool>(
             value: incidenceFilter?.isMobilityEnabled,
             validators: [],
@@ -1459,6 +1425,7 @@ class ThresholdSettingForm implements FormModel<ThresholdSetting> {
     }
   }
 
+  @override
   ThresholdSetting get model {
     if (!form.valid) {
       debugPrint(
@@ -1472,39 +1439,28 @@ class ThresholdSettingForm implements FormModel<ThresholdSetting> {
     return ThresholdSettingForm(thresholdSetting, form, path);
   }
 
+  @override
   void updateValue(
     ThresholdSetting value, {
     bool updateParent = true,
     bool emitEvent = true,
   }) =>
-      form.updateValue(
-          ThresholdSettingForm(value, FormGroup({}), null)
-              .formElements()
-              .rawValue,
-          updateParent: updateParent,
-          emitEvent: emitEvent);
-  void resetValue(
-    ThresholdSetting value, {
-    bool updateParent = true,
-    bool emitEvent = true,
-  }) =>
-      form.reset(
-          value: ThresholdSettingForm(value, FormGroup({}), null)
-              .formElements()
-              .rawValue,
-          updateParent: updateParent,
-          emitEvent: emitEvent);
+      form.updateValue(ThresholdSettingForm.formElements(value).rawValue,
+          updateParent: updateParent, emitEvent: emitEvent);
+  @override
   void reset({
+    ThresholdSetting? value,
     bool updateParent = true,
     bool emitEvent = true,
   }) =>
       form.reset(
-          value: formElements().rawValue,
+          value: value != null ? formElements(value).rawValue : null,
           updateParent: updateParent,
           emitEvent: emitEvent);
   String pathBuilder(String? pathItem) =>
       [path, pathItem].whereType<String>().join(".");
-  FormGroup formElements() => FormGroup({
+  static FormGroup formElements(ThresholdSetting? thresholdSetting) =>
+      FormGroup({
         isEnabledControlName: FormControl<bool>(
             value: thresholdSetting?.isEnabled,
             validators: [],
@@ -1663,6 +1619,7 @@ class TimerSettingForm implements FormModel<TimerSetting> {
     }
   }
 
+  @override
   TimerSetting get model {
     if (!form.valid) {
       debugPrint(
@@ -1676,37 +1633,27 @@ class TimerSettingForm implements FormModel<TimerSetting> {
     return TimerSettingForm(timerSetting, form, path);
   }
 
+  @override
   void updateValue(
     TimerSetting value, {
     bool updateParent = true,
     bool emitEvent = true,
   }) =>
-      form.updateValue(
-          TimerSettingForm(value, FormGroup({}), null).formElements().rawValue,
-          updateParent: updateParent,
-          emitEvent: emitEvent);
-  void resetValue(
-    TimerSetting value, {
-    bool updateParent = true,
-    bool emitEvent = true,
-  }) =>
-      form.reset(
-          value: TimerSettingForm(value, FormGroup({}), null)
-              .formElements()
-              .rawValue,
-          updateParent: updateParent,
-          emitEvent: emitEvent);
+      form.updateValue(TimerSettingForm.formElements(value).rawValue,
+          updateParent: updateParent, emitEvent: emitEvent);
+  @override
   void reset({
+    TimerSetting? value,
     bool updateParent = true,
     bool emitEvent = true,
   }) =>
       form.reset(
-          value: formElements().rawValue,
+          value: value != null ? formElements(value).rawValue : null,
           updateParent: updateParent,
           emitEvent: emitEvent);
   String pathBuilder(String? pathItem) =>
       [path, pathItem].whereType<String>().join(".");
-  FormGroup formElements() => FormGroup({
+  static FormGroup formElements(TimerSetting? timerSetting) => FormGroup({
         isEnabledControlName: FormControl<bool>(
             value: timerSetting?.isEnabled,
             validators: [],

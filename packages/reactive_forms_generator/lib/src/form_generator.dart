@@ -116,9 +116,9 @@ class FormGenerator {
   String get className => '${baseName}Form';
 
   String get classNameFull {
-    final generics = element.thisType.typeArguments.join(', ');
+    // final generics = element.thisType.typeArguments.join(', ');
 
-    return '$className${generics.isNotEmpty ? "<$generics>" : ""}';
+    return '$className${element.generics}';
   }
 
   List<ParameterElement> get parameters => element.annotatedParameters;
@@ -172,6 +172,7 @@ class FormGenerator {
       (b) => b
         ..name = 'updateValue'
         ..lambda = true
+        ..annotations.add(const CodeExpression(Code('override')))
         ..requiredParameters.add(
           Parameter(
             (b) => b
@@ -197,14 +198,62 @@ class FormGenerator {
         ])
         ..returns = const Reference('void')
         ..body = Code(
-          'form.updateValue($classNameFull(value, FormGroup({}), null).formElements().rawValue, updateParent: updateParent, emitEvent:emitEvent)',
+          'form.updateValue($className.formElements(value).rawValue, updateParent: updateParent, emitEvent:emitEvent)',
         ),
     );
   }
 
-  Method get resetValueMethod {
+  // Method get resetValueMethod {
+  //   String displayType =
+  //       type?.getDisplayString(withNullability: true) ?? element.fullTypeName;
+  //
+  //   if (type != null &&
+  //       type is ParameterizedType &&
+  //       (type as ParameterizedType).typeArguments.isNotEmpty) {
+  //     displayType = (type as ParameterizedType)
+  //         .typeArguments
+  //         .first
+  //         .getDisplayString(withNullability: true);
+  //   }
+  //
+  //   return Method(
+  //     (b) => b
+  //       ..name = 'resetValue'
+  //       ..lambda = true
+  //       ..annotations.add(const CodeExpression(Code('override')))
+  //       ..requiredParameters.add(
+  //         Parameter(
+  //           (b) => b
+  //             ..name = 'value'
+  //             ..type = Reference(displayType),
+  //         ),
+  //       )
+  //       ..optionalParameters.addAll([
+  //         Parameter(
+  //           (b) => b
+  //             ..name = 'updateParent'
+  //             ..named = true
+  //             ..defaultTo = const Code('true')
+  //             ..type = const Reference('bool'),
+  //         ),
+  //         Parameter(
+  //           (b) => b
+  //             ..name = 'emitEvent'
+  //             ..named = true
+  //             ..defaultTo = const Code('true')
+  //             ..type = const Reference('bool'),
+  //         ),
+  //       ])
+  //       ..returns = const Reference('void')
+  //       ..body = Code(
+  //         'form.reset(value: $className.formElements${element.generics}(value).rawValue, updateParent: updateParent, emitEvent:emitEvent)',
+  //       ),
+  //   );
+  // }
+
+  Method get resetMethod {
     String displayType =
-        type?.getDisplayString(withNullability: true) ?? element.fullTypeName;
+        type?.getDisplayString(withNullability: false) ?? element.fullTypeName;
 
     if (type != null &&
         type is ParameterizedType &&
@@ -212,49 +261,20 @@ class FormGenerator {
       displayType = (type as ParameterizedType)
           .typeArguments
           .first
-          .getDisplayString(withNullability: true);
+          .getDisplayString(withNullability: false);
     }
 
     return Method(
       (b) => b
-        ..name = 'resetValue'
+        ..name = 'reset'
         ..lambda = true
-        ..requiredParameters.add(
+        ..annotations.add(const CodeExpression(Code('override')))
+        ..optionalParameters.addAll([
           Parameter(
             (b) => b
               ..name = 'value'
-              ..type = Reference(displayType),
+              ..type = Reference('$displayType?'),
           ),
-        )
-        ..optionalParameters.addAll([
-          Parameter(
-            (b) => b
-              ..name = 'updateParent'
-              ..named = true
-              ..defaultTo = const Code('true')
-              ..type = const Reference('bool'),
-          ),
-          Parameter(
-            (b) => b
-              ..name = 'emitEvent'
-              ..named = true
-              ..defaultTo = const Code('true')
-              ..type = const Reference('bool'),
-          ),
-        ])
-        ..returns = const Reference('void')
-        ..body = Code(
-          'form.reset(value: $classNameFull(value, FormGroup({}), null).formElements().rawValue, updateParent: updateParent, emitEvent:emitEvent)',
-        ),
-    );
-  }
-
-  Method get resetMethod {
-    return Method(
-      (b) => b
-        ..name = 'reset'
-        ..lambda = true
-        ..optionalParameters.addAll([
           Parameter(
             (b) => b
               ..name = 'updateParent'
@@ -272,7 +292,7 @@ class FormGenerator {
         ])
         ..returns = const Reference('void')
         ..body = const Code(
-          'form.reset(value: formElements().rawValue, updateParent: updateParent, emitEvent:emitEvent)',
+          'form.reset(value: value != null ? formElements(value).rawValue : null, updateParent: updateParent, emitEvent:emitEvent)',
         ),
     );
   }
@@ -298,8 +318,8 @@ class FormGenerator {
           '''
               final formClass = ${formGroupGenerator.className}(value, form, pathBuilder('${field.fieldName}.\${${field.name}${formGroupGenerator.className}.length}'));
 
-              ${field.name}${formGroupGenerator.className}.add(formClass);
-              ${field.fieldControlName}${field.nullabilitySuffix}.add(formClass.formElements());''',
+              ${field.name}${formGroupGenerator.className}.add(formClass);             
+              ${field.fieldControlName}${field.nullabilitySuffix}.add(${formGroupGenerator.className}.formElements${formGroupGenerator.element.generics}(value));''',
         ),
     );
   }
@@ -464,23 +484,40 @@ class FormGenerator {
   Method get modelMethod => Method(
         (b) {
           final parameterValues = parameters.map((e) {
-            if (!e.isReactiveFormAnnotated) {
-              final nullabilitySuffix = element.isNullable ? '?' : '';
-              return '${e.fieldName}:${element.name.camelCase}$nullabilitySuffix.${e.fieldName}';
-            }
+            final nullabilitySuffix = element.isNullable ? '?' : '';
+            final fieldValueName =
+                '${element.name.camelCase}$nullabilitySuffix.${e.fieldName}';
+
+            // if (!e.isReactiveFormAnnotated) {
+            //   final nullabilitySuffix = element.isNullable ? '?' : '';
+            //   final fieldValueName = '${element.name.camelCase}$nullabilitySuffix.${e.fieldName}';
+            //   return '${e.fieldName}:${element.name.camelCase}$nullabilitySuffix.${e.fieldName}';
+            // }
+
+            // if (e.fieldValueName == 'id') {
+
+            // }
 
             if (e.isPositional ||
                 e.isRequiredPositional ||
                 (e.isOptional && e.isPositional)) {
-              return e.fieldValueName;
+              if (e.isReactiveFormAnnotated) {
+                return e.fieldValueName;
+              } else {
+                return fieldValueName;
+              }
             }
 
-            return '${e.fieldName}:${e.fieldValueName}';
+            if (e.isReactiveFormAnnotated) {
+              return '${e.fieldName}:${e.fieldValueName}';
+            }
+            return '${e.fieldName}:$fieldValueName';
           });
 
           b
             ..name = 'model'
             ..returns = Reference(element.fullTypeName)
+            ..annotations.add(const CodeExpression(Code('override')))
             ..type = MethodType.getter
             ..body = Code('''
               if (!form.valid) {
@@ -574,6 +611,29 @@ class FormGenerator {
         },
       );
 
+  String get modelDisplayType {
+    final nullabilitySuffix = root.isNullable || root != element ? '?' : '';
+    String displayType =
+        type?.getDisplayString(withNullability: false) ?? element.fullTypeName;
+
+    displayType = '$displayType$nullabilitySuffix';
+
+    if (type != null &&
+        type is ParameterizedType &&
+        (type as ParameterizedType).typeArguments.isNotEmpty) {
+      final parameterizedType = (type as ParameterizedType).typeArguments.first;
+
+      displayType = parameterizedType.getDisplayString(withNullability: false);
+
+      if (parameterizedType.element is ClassElement &&
+          (parameterizedType.element as ClassElement).isNullable) {
+        displayType = '$displayType?';
+      }
+    }
+
+    return displayType;
+  }
+
   List<Spec> get generate {
     return [
       Class(
@@ -586,36 +646,10 @@ class FormGenerator {
               ...staticFieldNameList,
               ...nestedFormGroupFields,
               Field(
-                (b) {
-                  final nullabilitySuffix =
-                      root.isNullable || root != element ? '?' : '';
-                  String displayType =
-                      type?.getDisplayString(withNullability: false) ??
-                          element.fullTypeName;
-
-                  displayType = '$displayType$nullabilitySuffix';
-
-                  if (type != null &&
-                      type is ParameterizedType &&
-                      (type as ParameterizedType).typeArguments.isNotEmpty) {
-                    final parameterizedType =
-                        (type as ParameterizedType).typeArguments.first;
-
-                    displayType = parameterizedType.getDisplayString(
-                        withNullability: false);
-
-                    if (parameterizedType.element is ClassElement &&
-                        (parameterizedType.element as ClassElement)
-                            .isNullable) {
-                      displayType = '$displayType?';
-                    }
-                  }
-
-                  b
-                    ..name = element.name.camelCase
-                    ..modifier = FieldModifier.final$
-                    ..type = Reference(displayType);
-                },
+                (b) => b
+                  ..name = element.name.camelCase
+                  ..modifier = FieldModifier.final$
+                  ..type = Reference(modelDisplayType),
               ),
               Field(
                 (b) => b
@@ -672,7 +706,7 @@ class FormGenerator {
               modelMethod,
               copyWithPath,
               updateValueMethod,
-              resetValueMethod,
+              // resetValueMethod,
               resetMethod,
               Method(
                 (b) => b
@@ -693,8 +727,16 @@ class FormGenerator {
               Method(
                 (b) {
                   b
-                    ..name = 'formElements'
+                    ..name = 'formElements${element.generics}'
+                    ..static = true
                     ..lambda = true
+                    ..requiredParameters.add(
+                      Parameter(
+                        (b) => b
+                          ..name = element.name.camelCase
+                          ..type = Reference(modelDisplayType),
+                      ),
+                    )
                     ..returns = const Reference('FormGroup')
                     ..body = Code(
                       FormGroupGenerator(
@@ -703,7 +745,11 @@ class FormGenerator {
                           name: 'FakeParameterElement',
                           nameOffset: 20,
                           parameterKind: u.ParameterKind.REQUIRED,
-                        )..type = t.InterfaceTypeImpl(
+                        )
+                          ..enclosingElement =
+                              (e.ConstructorElementImpl('aa', 1)
+                                ..enclosingElement = element)
+                          ..type = t.InterfaceTypeImpl(
                             element: element,
                             typeArguments: element.thisType.typeArguments,
                             nullabilitySuffix: NullabilitySuffix.none,

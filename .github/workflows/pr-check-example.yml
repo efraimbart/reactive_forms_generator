@@ -14,11 +14,11 @@ jobs:
   pr-check-example:
     runs-on: ubuntu-latest
     container:
-      image: cirrusci/flutter:3.3.3
+      image: cirrusci/flutter:3.3.10
 
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: reactive_forms_generator => example => build_runner
         run: cd packages/reactive_forms_generator/example && flutter pub get && flutter pub run build_runner build --delete-conflicting-outputs
